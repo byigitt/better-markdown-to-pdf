@@ -33,7 +33,7 @@ A polished, web-based markdown editor with live preview, LaTeX math support, and
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/byigitt/better-markdown-to-pdf
 cd better-markdown-to-pdf
 
 # Install dependencies
