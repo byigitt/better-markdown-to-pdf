@@ -137,13 +137,13 @@ Click the **Upload .md** button to import an existing markdown file.
 
 ```bash
 # Run all tests
-npm test
+pnpm test
 
 # Run tests in watch mode
-npm run test:watch
+pnpm test:watch
 
 # Type checking
-npm run typecheck
+pnpm typecheck
 ```
 
 ## Project Structure
@@ -249,7 +249,7 @@ Generate a PDF from markdown content.
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests: `npm test`
+4. Run tests: `pnpm test`
 5. Submit a pull request
 
 ## License

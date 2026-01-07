@@ -1,30 +1,63 @@
 {
   "name": "better-markdown-to-pdf",
   "version": "1.0.0",
-  "description": "A polished markdown-to-PDF web application with LaTeX support",
-  "private": true,
+  "description": "Convert Markdown to PDF with LaTeX, Mermaid diagrams, and syntax highlighting",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "md-to-pdf": "./dist/cli.js",
+    "better-md-to-pdf": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "markdown",
+    "pdf",
+    "latex",
+    "katex",
+    "mermaid",
+    "converter",
+    "markdown-to-pdf"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:pkg": "tsup",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build:pkg"
   },
   "dependencies": {
-    "next": "^14.2.21",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "dompurify": "^3.2.1",
+    "highlight.js": "^11.10.0",
+    "isomorphic-dompurify": "^2.16.0",
+    "katex": "^0.16.11",
     "markdown-it": "^14.1.0",
     "markdown-it-checkbox": "^1.1.0",
     "markdown-it-container": "^4.0.0",
-    "highlight.js": "^11.10.0",
-    "katex": "^0.16.11",
     "mermaid": "^11.4.0",
-    "dompurify": "^3.2.1",
-    "isomorphic-dompurify": "^2.16.0",
-    "playwright": "^1.49.1"
+    "next": "^14.2.21",
+    "playwright": "^1.49.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
@@ -32,11 +65,14 @@
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
     "@vitejs/plugin-react": "^4.3.4",
+    "chokidar": "^5.0.0",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.21"
+    "eslint-config-next": "^14.2.21",
+    "glob": "^13.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   },
   "pnpm": {
     "overrides": {

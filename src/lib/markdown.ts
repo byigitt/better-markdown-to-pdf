@@ -4,13 +4,21 @@ import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
 import hljs from 'highlight.js';
 import katex from 'katex';
 
+// Options interface for markdown-it
+export interface MarkdownItOptions {
+  html?: boolean;
+  linkify?: boolean;
+  typographer?: boolean;
+  breaks?: boolean;
+}
+
 // Create the markdown-it instance with plugins
-function createMarkdownRenderer(): MarkdownIt {
+function createMarkdownRenderer(options: MarkdownItOptions = {}): MarkdownIt {
   const md = new MarkdownIt({
-    html: true,
-    linkify: true,
-    typographer: true,
-    breaks: false,
+    html: options.html ?? true,
+    linkify: options.linkify ?? true,
+    typographer: options.typographer ?? true,
+    breaks: options.breaks ?? false,
     highlight: (str: string, lang: string): string => {
       if (lang && hljs.getLanguage(lang)) {
         try {
@@ -199,12 +207,46 @@ export function renderMarkdown(content: string): string {
   return md.render(content);
 }
 
+export interface MarkdownOptions {
+  /** Enable HTML tags in source */
+  html?: boolean;
+  /** Autoconvert URL-like text to links */
+  linkify?: boolean;
+  /** Enable some language-neutral replacement + quotes beautification */
+  typographer?: boolean;
+  /** Convert \n in paragraphs into <br> */
+  breaks?: boolean;
+  /** Enable GitHub Flavored Markdown features (tables, strikethrough) */
+  gfm?: boolean;
+}
+
 export interface RenderOptions {
   sanitize?: boolean;
+  /** Markdown-it parser options */
+  markdownOptions?: MarkdownOptions;
+}
+
+/**
+ * Render markdown with custom options.
+ * Creates a new renderer if custom markdown options are provided.
+ */
+export function renderMarkdownWithOptions(content: string, markdownOptions?: MarkdownOptions): string {
+  if (markdownOptions && Object.keys(markdownOptions).length > 0) {
+    // Create a custom renderer with the provided options
+    const customMd = createMarkdownRenderer({
+      html: markdownOptions.html,
+      linkify: markdownOptions.linkify,
+      typographer: markdownOptions.typographer,
+      breaks: markdownOptions.breaks,
+    });
+    return customMd.render(content);
+  }
+  // Use default singleton renderer
+  return renderMarkdown(content);
 }
 
 export function renderMarkdownSafe(content: string, options: RenderOptions = {}): string {
-  const html = renderMarkdown(content);
+  const html = renderMarkdownWithOptions(content, options.markdownOptions);
 
   if (options.sanitize !== false) {
     // Import DOMPurify dynamically for sanitization
