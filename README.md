@@ -27,7 +27,7 @@ A polished, web-based markdown editor with live preview, LaTeX math support, and
 ### Prerequisites
 
 - Node.js 18+
-- npm or pnpm
+- pnpm
 
 ### Installation
 
@@ -36,11 +36,14 @@ A polished, web-based markdown editor with live preview, LaTeX math support, and
 git clone https://github.com/byigitt/better-markdown-to-pdf
 cd better-markdown-to-pdf
 
+# To install pnpm
+npm install -g pnpm
+
 # Install dependencies
-npm install
+pnpm install
 
 # Install Playwright browsers (for PDF export)
-npx playwright install chromium
+pnpx playwright install chromium
 ```
 
 ### Development

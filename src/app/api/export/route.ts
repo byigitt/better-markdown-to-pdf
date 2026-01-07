@@ -6,6 +6,7 @@ interface ExportOptions {
   pageSize: 'a4' | 'letter';
   margins: 'normal' | 'narrow' | 'wide';
   theme: 'light' | 'dark';
+  fontSize: string;
 }
 
 interface ExportRequest {
@@ -24,7 +25,7 @@ const PAGE_FORMATS = {
   letter: 'Letter' as const,
 };
 
-function generateHtml(content: string): string {
+function generateHtml(content: string, fontSize: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,7 +41,7 @@ function generateHtml(content: string): string {
     :root {
       --font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
       --font-family-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace;
-      --font-size-base: 14px;
+      --font-size-base: ${fontSize};
       --line-height-base: 1.6;
       --line-height-code: 1.357;
       --spacing-xs: 4px;
@@ -110,15 +111,13 @@ function generateHtml(content: string): string {
     .markdown-body li { margin-top: var(--spacing-xs); }
     .markdown-body li + li { margin-top: var(--spacing-xs); }
 
-    .markdown-body ul.task-list { list-style: none; padding-left: 0; }
-    .markdown-body .task-list-item { position: relative; padding-left: 1.75em; }
-    .markdown-body .task-list-item input[type="checkbox"] {
-      position: absolute; left: 0; top: 0.25em; margin: 0;
-    }
+    .markdown-body ul:has(input[type="checkbox"]) { list-style: none; padding-left: 1.5em; }
+    .markdown-body li:has(> input[type="checkbox"]) { list-style: none; }
+    .markdown-body li > input[type="checkbox"] { margin-right: 0.4em; }
 
     .markdown-body code {
       font-family: var(--font-family-mono);
-      font-size: 85%;
+      font-size: 0.9em;
       padding: 0.2em 0.4em;
       margin: 0;
       background-color: var(--color-code-inline-bg);
@@ -131,7 +130,7 @@ function generateHtml(content: string): string {
       margin-bottom: var(--spacing-md);
       padding: var(--spacing-md);
       overflow: auto;
-      font-size: 85%;
+      font-size: 0.95em;
       line-height: var(--line-height-code);
       background-color: var(--color-code-bg);
       border-radius: 6px;
@@ -145,10 +144,11 @@ function generateHtml(content: string): string {
       padding: 0;
       margin: 0;
       overflow: visible;
-      line-height: inherit;
+      line-height: 1.5;
       background-color: transparent;
       color: var(--color-code-text);
       border: 0;
+      font-size: inherit;
     }
 
     .markdown-body blockquote {
@@ -199,13 +199,14 @@ function generateHtml(content: string): string {
 
     .markdown-body .katex-block {
       display: block;
-      margin: var(--spacing-md) 0;
+      margin: var(--spacing-sm) 0;
       text-align: center;
       overflow-x: auto;
-      padding: var(--spacing-md) 0;
+      padding: var(--spacing-xs) 0;
     }
 
     .markdown-body .katex { font-size: 1.1em; }
+    .markdown-body .katex-block .katex { font-size: 1.6em; }
 
     .markdown-body .math-error {
       color: #d32f2f;
@@ -294,11 +295,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       pageSize: body.options?.pageSize || 'a4',
       margins: body.options?.margins || 'normal',
       theme: body.options?.theme || 'light',
+      fontSize: body.options?.fontSize || '14px',
     };
 
     // Render markdown to HTML
     const htmlContent = renderMarkdownSafe(body.markdown, { sanitize: true });
-    const fullHtml = generateHtml(htmlContent);
+    const fullHtml = generateHtml(htmlContent, options.fontSize);
 
     // Generate PDF using Playwright
     const browser = await getBrowser();

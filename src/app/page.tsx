@@ -71,11 +71,14 @@ graph TD
 
 type PageSize = 'a4' | 'letter';
 type MarginSize = 'normal' | 'narrow' | 'wide';
+type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
 
-interface ExportOptions {
-  pageSize: PageSize;
-  margins: MarginSize;
-}
+const FONT_SIZE_VALUES: Record<FontSize, string> = {
+  small: '12px',
+  medium: '14px',
+  large: '16px',
+  xlarge: '18px',
+};
 
 export default function Home() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
@@ -83,6 +86,7 @@ export default function Home() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [margins, setMargins] = useState<MarginSize>('normal');
+  const [fontSize, setFontSize] = useState<FontSize>('medium');
   const [isExporting, setIsExporting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,33 +105,40 @@ export default function Home() {
     setRenderedHtml(renderMarkdownSafe(markdown));
   }, [markdown]);
 
-  // Initialize Mermaid
+  // Initialize and render Mermaid diagrams
   useEffect(() => {
-    const initMermaid = async () => {
-      if (typeof window !== 'undefined') {
-        const mermaid = (await import('mermaid')).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: theme === 'dark' ? 'dark' : 'default',
-          securityLevel: 'loose',
-        });
-        // Re-render mermaid diagrams
-        if (previewRef.current) {
-          const mermaidDivs = previewRef.current.querySelectorAll('.mermaid');
-          mermaidDivs.forEach((div, index) => {
-            const content = div.textContent || '';
-            div.id = `mermaid-${index}`;
-            mermaid.render(`mermaid-svg-${index}`, content).then(({ svg }) => {
-              div.innerHTML = svg;
-            }).catch(() => {
-              // Mermaid rendering failed, keep original content
-            });
-          });
+    const renderMermaid = async () => {
+      if (typeof window === 'undefined' || !previewRef.current) return;
+
+      const mermaid = (await import('mermaid')).default;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: theme === 'dark' ? 'dark' : 'default',
+        securityLevel: 'loose',
+      });
+
+      const mermaidDivs = previewRef.current.querySelectorAll('.mermaid:not([data-processed])');
+      const renderTime = Date.now();
+
+      for (let i = 0; i < mermaidDivs.length; i++) {
+        const div = mermaidDivs[i] as HTMLElement;
+        const content = div.textContent || '';
+        if (!content.trim()) continue;
+
+        try {
+          const { svg } = await mermaid.render(`mermaid-${renderTime}-${i}`, content);
+          div.innerHTML = svg;
+          div.setAttribute('data-processed', 'true');
+        } catch {
+          // Mermaid rendering failed, keep original content
         }
       }
     };
-    initMermaid();
-  }, [markdown, theme]);
+
+    // Small delay to ensure DOM is updated with new HTML
+    const timeoutId = setTimeout(renderMermaid, 100);
+    return () => clearTimeout(timeoutId);
+  }, [renderedHtml, theme]);
 
   const toggleTheme = useCallback(() => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -179,6 +190,7 @@ export default function Home() {
             pageSize,
             margins,
             theme,
+            fontSize: FONT_SIZE_VALUES[fontSize],
           },
         }),
       });
@@ -204,7 +216,7 @@ export default function Home() {
     } finally {
       setIsExporting(false);
     }
-  }, [markdown, pageSize, margins, theme, showToast]);
+  }, [markdown, pageSize, margins, theme, fontSize, showToast]);
 
   return (
     <div className="app-container">
@@ -247,6 +259,18 @@ export default function Home() {
             <option value="normal">Normal margins</option>
             <option value="narrow">Narrow margins</option>
             <option value="wide">Wide margins</option>
+          </select>
+
+          <select
+            className="select"
+            value={fontSize}
+            onChange={(e) => setFontSize(e.target.value as FontSize)}
+            aria-label="Font size"
+          >
+            <option value="small">Small (12px)</option>
+            <option value="medium">Medium (14px)</option>
+            <option value="large">Large (16px)</option>
+            <option value="xlarge">X-Large (18px)</option>
           </select>
 
           <button
@@ -308,6 +332,7 @@ export default function Home() {
             <div
               ref={previewRef}
               className="markdown-body"
+              style={{ fontSize: FONT_SIZE_VALUES[fontSize] }}
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           </div>

@@ -12,23 +12,32 @@ function createMarkdownRenderer(): MarkdownIt {
     typographer: true,
     breaks: false,
     highlight: (str: string, lang: string): string => {
-      // Handle mermaid specially - don't highlight, wrap in div
-      if (lang === 'mermaid') {
-        return `<div class="mermaid">${escapeHtml(str)}</div>`;
-      }
-
       if (lang && hljs.getLanguage(lang)) {
         try {
-          return `<pre class="hljs"><code class="language-${lang}">${
-            hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
-          }</code></pre>`;
+          return hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
         } catch {
           // Fall through to default
         }
       }
-      return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+      return escapeHtml(str);
     },
   });
+
+  // Override fence renderer to handle mermaid specially
+  md.renderer.rules.fence = (tokens, idx, options) => {
+    const token = tokens[idx];
+    const lang = token.info.trim();
+
+    // Mermaid blocks should not be wrapped in pre/code
+    if (lang === 'mermaid') {
+      return `<div class="mermaid">${escapeHtml(token.content)}</div>`;
+    }
+
+    // For other languages, use default fence with hljs wrapper
+    const code = options.highlight?.(token.content, lang, '') || escapeHtml(token.content);
+    const langClass = lang ? ` class="language-${lang}"` : '';
+    return `<pre class="hljs"><code${langClass}>${code}</code></pre>`;
+  };
 
   // Add checkbox support for task lists
   md.use(require('markdown-it-checkbox'));
