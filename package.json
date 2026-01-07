@@ -37,5 +37,11 @@
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.21"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild@<=0.24.2": ">=0.25.0",
+      "glob@>=10.2.0 <10.5.0": ">=10.5.0"
+    }
   }
 }
