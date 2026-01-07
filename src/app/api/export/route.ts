@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chromium, Browser } from 'playwright';
-import { renderMarkdownSafe } from '@/lib/markdown';
+import { renderMarkdownSafe, MarkdownOptions } from '@/lib/markdown';
+
+type HighlightTheme = 'github' | 'monokai' | 'dracula' | 'vs2015' | 'atom-one-dark' | 'atom-one-light';
+type ExportFormat = 'pdf' | 'html';
 
 interface ExportOptions {
   pageSize: 'a4' | 'letter';
   margins: 'normal' | 'narrow' | 'wide';
   theme: 'light' | 'dark';
   fontSize: string;
+  highlightTheme: HighlightTheme;
+  format: ExportFormat;
+  markdownOptions: MarkdownOptions;
 }
 
 interface ExportRequest {
@@ -25,7 +31,78 @@ const PAGE_FORMATS = {
   letter: 'Letter' as const,
 };
 
-function generateHtml(content: string, fontSize: string): string {
+const HIGHLIGHT_THEMES: Record<HighlightTheme, string> = {
+  github: `
+    .hljs{color:#4d4d4c;background:#f6f8fa}
+    .hljs-comment,.hljs-quote{color:#8e908c}
+    .hljs-variable,.hljs-tag,.hljs-name,.hljs-selector-id,.hljs-selector-class,.hljs-regexp,.hljs-deletion{color:#c82829}
+    .hljs-number,.hljs-built_in,.hljs-literal,.hljs-type,.hljs-params,.hljs-meta,.hljs-link{color:#f5871f}
+    .hljs-attribute{color:#eab700}
+    .hljs-string,.hljs-symbol,.hljs-bullet,.hljs-addition{color:#718c00}
+    .hljs-title,.hljs-section{color:#4271ae}
+    .hljs-keyword,.hljs-selector-tag{color:#8959a8}
+  `,
+  monokai: `
+    .hljs{background:#272822;color:#ddd}
+    .hljs-tag,.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-strong,.hljs-name{color:#f92672}
+    .hljs-code{color:#66d9ef}
+    .hljs-attribute,.hljs-symbol,.hljs-regexp,.hljs-link{color:#bf79db}
+    .hljs-string,.hljs-bullet,.hljs-subst,.hljs-title,.hljs-section,.hljs-emphasis,.hljs-type,.hljs-built_in,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-addition,.hljs-variable,.hljs-template-tag,.hljs-template-variable{color:#a6e22e}
+    .hljs-title.class_,.hljs-class .hljs-title{color:#fff}
+    .hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta{color:#75715e}
+  `,
+  dracula: `
+    .hljs{background:#282a36;color:#f8f8f2}
+    .hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-section,.hljs-link{color:#ff79c6}
+    .hljs-function .hljs-keyword{color:#ff79c6}
+    .hljs-subst{color:#f8f8f2}
+    .hljs-string,.hljs-title,.hljs-name,.hljs-type,.hljs-attribute,.hljs-symbol,.hljs-bullet,.hljs-addition,.hljs-variable,.hljs-template-tag,.hljs-template-variable{color:#f1fa8c}
+    .hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta{color:#6272a4}
+    .hljs-number{color:#bd93f9}
+    .hljs-built_in,.hljs-class .hljs-title,.hljs-title.class_{color:#50fa7b}
+  `,
+  vs2015: `
+    .hljs{background:#1E1E1E;color:#DCDCDC}
+    .hljs-keyword,.hljs-literal,.hljs-symbol,.hljs-name{color:#569CD6}
+    .hljs-link{color:#569CD6;text-decoration:underline}
+    .hljs-built_in,.hljs-type{color:#4EC9B0}
+    .hljs-number,.hljs-class{color:#B8D7A3}
+    .hljs-string,.hljs-meta .hljs-string{color:#D69D85}
+    .hljs-regexp,.hljs-template-tag{color:#9A5334}
+    .hljs-subst,.hljs-function,.hljs-title,.hljs-params,.hljs-formula{color:#DCDCDC}
+    .hljs-comment,.hljs-quote{color:#57A64A;font-style:italic}
+    .hljs-doctag{color:#608B4E}
+    .hljs-meta,.hljs-meta .hljs-keyword,.hljs-tag{color:#9B9B9B}
+    .hljs-variable,.hljs-template-variable{color:#BD63C5}
+    .hljs-attr,.hljs-attribute{color:#9CDCFE}
+    .hljs-section{color:#ffd700}
+  `,
+  'atom-one-dark': `
+    .hljs{background:#282c34;color:#abb2bf}
+    .hljs-comment,.hljs-quote{color:#5c6370;font-style:italic}
+    .hljs-doctag,.hljs-keyword,.hljs-formula{color:#c678dd}
+    .hljs-section,.hljs-name,.hljs-selector-tag,.hljs-deletion,.hljs-subst{color:#e06c75}
+    .hljs-literal{color:#56b6c2}
+    .hljs-string,.hljs-regexp,.hljs-addition,.hljs-attribute,.hljs-meta .hljs-string{color:#98c379}
+    .hljs-attr,.hljs-variable,.hljs-template-variable,.hljs-type,.hljs-selector-class,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-number{color:#d19a66}
+    .hljs-symbol,.hljs-bullet,.hljs-link,.hljs-meta,.hljs-selector-id,.hljs-title{color:#61aeee}
+    .hljs-built_in,.hljs-title.class_,.hljs-class .hljs-title{color:#e6c07b}
+  `,
+  'atom-one-light': `
+    .hljs{background:#fafafa;color:#383a42}
+    .hljs-comment,.hljs-quote{color:#a0a1a7;font-style:italic}
+    .hljs-doctag,.hljs-keyword,.hljs-formula{color:#a626a4}
+    .hljs-section,.hljs-name,.hljs-selector-tag,.hljs-deletion,.hljs-subst{color:#e45649}
+    .hljs-literal{color:#0184bb}
+    .hljs-string,.hljs-regexp,.hljs-addition,.hljs-attribute,.hljs-meta .hljs-string{color:#50a14f}
+    .hljs-attr,.hljs-variable,.hljs-template-variable,.hljs-type,.hljs-selector-class,.hljs-selector-attr,.hljs-selector-pseudo,.hljs-number{color:#986801}
+    .hljs-symbol,.hljs-bullet,.hljs-link,.hljs-meta,.hljs-selector-id,.hljs-title{color:#4078f2}
+    .hljs-built_in,.hljs-title.class_,.hljs-class .hljs-title{color:#c18401}
+  `,
+};
+
+function generateHtml(content: string, fontSize: string, highlightTheme: HighlightTheme = 'github'): string {
+  const highlightCss = HIGHLIGHT_THEMES[highlightTheme] || HIGHLIGHT_THEMES.github;
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -226,16 +303,7 @@ function generateHtml(content: string, fontSize: string): string {
     }
 
     /* Syntax highlighting */
-    .hljs { color: #4d4d4c; background: var(--color-code-bg); }
-    .hljs-comment, .hljs-quote { color: #8e908c; }
-    .hljs-variable, .hljs-template-variable, .hljs-tag, .hljs-name,
-    .hljs-selector-id, .hljs-selector-class, .hljs-regexp, .hljs-deletion { color: #c82829; }
-    .hljs-number, .hljs-built_in, .hljs-literal, .hljs-type,
-    .hljs-params, .hljs-meta, .hljs-link { color: #f5871f; }
-    .hljs-attribute { color: #eab700; }
-    .hljs-string, .hljs-symbol, .hljs-bullet, .hljs-addition { color: #718c00; }
-    .hljs-title, .hljs-section { color: #4271ae; }
-    .hljs-keyword, .hljs-selector-tag { color: #8959a8; }
+    ${highlightCss}
 
     @media print {
       body { padding: 0; }
@@ -296,11 +364,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       margins: body.options?.margins || 'normal',
       theme: body.options?.theme || 'light',
       fontSize: body.options?.fontSize || '14px',
+      highlightTheme: body.options?.highlightTheme || 'github',
+      format: body.options?.format || 'pdf',
+      markdownOptions: body.options?.markdownOptions || {},
     };
 
     // Render markdown to HTML
-    const htmlContent = renderMarkdownSafe(body.markdown, { sanitize: true });
-    const fullHtml = generateHtml(htmlContent, options.fontSize);
+    const htmlContent = renderMarkdownSafe(body.markdown, {
+      sanitize: true,
+      markdownOptions: options.markdownOptions,
+    });
+    const fullHtml = generateHtml(htmlContent, options.fontSize, options.highlightTheme);
+
+    // HTML export mode
+    if (options.format === 'html') {
+      return new NextResponse(fullHtml, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="document.html"',
+        },
+      });
+    }
 
     // Generate PDF using Playwright
     const browser = await getBrowser();
