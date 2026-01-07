@@ -1,0 +1,517 @@
+/* Better Markdown to PDF - Core Styles
+ * Based on VSCode markdown styling with enhancements for PDF export and LaTeX
+ */
+
+/* ============================================
+   CSS Variables for Theming
+   ============================================ */
+:root {
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+  --font-family-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+  --font-size-base: 14px;
+  --line-height-base: 1.6;
+  --line-height-code: 1.357;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Light theme colors (default) */
+  --color-text: #333333;
+  --color-text-secondary: #6a737d;
+  --color-heading: #1a1a1a;
+  --color-link: #0366d6;
+  --color-link-hover: #0550ae;
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f6f8fa;
+  --color-border: rgba(0, 0, 0, 0.12);
+  --color-border-strong: rgba(0, 0, 0, 0.18);
+
+  /* Code */
+  --color-code-bg: #f6f8fa;
+  --color-code-text: #24292f;
+  --color-code-inline-bg: rgba(175, 184, 193, 0.2);
+  --color-code-inline-text: #c9501c;
+
+  /* Blockquote */
+  --color-blockquote-bg: rgba(127, 127, 127, 0.1);
+  --color-blockquote-border: rgba(0, 122, 204, 0.5);
+
+  /* Table */
+  --color-table-border: #d0d7de;
+  --color-table-header-bg: #f6f8fa;
+  --color-table-row-alt: #f6f8fa;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-text: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-heading: #ffffff;
+  --color-link: #58a6ff;
+  --color-link-hover: #79c0ff;
+  --color-bg: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+
+  --color-code-bg: rgba(110, 118, 129, 0.2);
+  --color-code-text: #e6edf3;
+  --color-code-inline-bg: rgba(110, 118, 129, 0.3);
+  --color-code-inline-text: #f97583;
+
+  --color-blockquote-bg: rgba(127, 127, 127, 0.15);
+  --color-blockquote-border: rgba(88, 166, 255, 0.5);
+
+  --color-table-border: #30363d;
+  --color-table-header-bg: #161b22;
+  --color-table-row-alt: #161b22;
+}
+
+/* ============================================
+   Base Markdown Styles
+   ============================================ */
+.markdown-body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  word-wrap: break-word;
+  padding: var(--spacing-lg);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   Typography
+   ============================================ */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-heading);
+}
+
+.markdown-body h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+
+.markdown-body h4 {
+  font-size: 1em;
+}
+
+.markdown-body h5 {
+  font-size: 0.875em;
+}
+
+.markdown-body h6 {
+  font-size: 0.85em;
+  color: var(--color-text-secondary);
+}
+
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+
+.markdown-body em {
+  font-style: italic;
+}
+
+/* ============================================
+   Links
+   ============================================ */
+.markdown-body a {
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+/* ============================================
+   Lists
+   ============================================ */
+.markdown-body ul,
+.markdown-body ol {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  padding-left: 2em;
+}
+
+.markdown-body ul ul,
+.markdown-body ul ol,
+.markdown-body ol ol,
+.markdown-body ol ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.markdown-body li {
+  margin-top: var(--spacing-xs);
+}
+
+.markdown-body li + li {
+  margin-top: var(--spacing-xs);
+}
+
+/* Task lists */
+.markdown-body ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown-body .task-list-item {
+  position: relative;
+  padding-left: 1.75em;
+}
+
+.markdown-body .task-list-item input[type="checkbox"] {
+  position: absolute;
+  left: 0;
+  top: 0.25em;
+  margin: 0;
+}
+
+/* ============================================
+   Code
+   ============================================ */
+.markdown-body code {
+  font-family: var(--font-family-mono);
+  font-size: 85%;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  background-color: var(--color-code-inline-bg);
+  color: var(--color-code-inline-text);
+  border-radius: 6px;
+}
+
+.markdown-body pre {
+  margin-top: 0;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  overflow: auto;
+  font-size: 85%;
+  line-height: var(--line-height-code);
+  background-color: var(--color-code-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.markdown-body pre code {
+  display: block;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  color: var(--color-code-text);
+  border: 0;
+  white-space: pre;
+}
+
+.markdown-body pre.hljs {
+  padding: var(--spacing-md);
+}
+
+/* ============================================
+   Blockquotes
+   ============================================ */
+.markdown-body blockquote {
+  margin: 0 0 var(--spacing-md);
+  padding: 0 var(--spacing-md) 0 10px;
+  color: var(--color-text-secondary);
+  border-left: 5px solid var(--color-blockquote-border);
+  background-color: var(--color-blockquote-bg);
+}
+
+.markdown-body blockquote > :first-child {
+  margin-top: var(--spacing-sm);
+}
+
+.markdown-body blockquote > :last-child {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ============================================
+   Tables
+   ============================================ */
+.markdown-body table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin-bottom: var(--spacing-md);
+  overflow: auto;
+  display: block;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid var(--color-table-border);
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  background-color: var(--color-table-header-bg);
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: var(--color-table-row-alt);
+}
+
+/* ============================================
+   Horizontal Rules
+   ============================================ */
+.markdown-body hr {
+  height: 0.25em;
+  padding: 0;
+  margin: var(--spacing-lg) 0;
+  background-color: var(--color-border-strong);
+  border: 0;
+}
+
+/* ============================================
+   Images
+   ============================================ */
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: var(--spacing-md) 0;
+  border-radius: 4px;
+}
+
+/* ============================================
+   KaTeX / LaTeX Styles
+   ============================================ */
+.markdown-body .katex-block {
+  display: block;
+  margin: var(--spacing-md) 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--spacing-md) 0;
+}
+
+.markdown-body .katex {
+  font-size: 1.1em;
+}
+
+.markdown-body .math-error {
+  color: #d32f2f;
+  background-color: rgba(211, 47, 47, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+  font-family: var(--font-family-mono);
+  font-size: 85%;
+}
+
+/* ============================================
+   Mermaid Diagrams
+   ============================================ */
+.markdown-body .mermaid {
+  margin: var(--spacing-md) 0;
+  text-align: center;
+  background-color: var(--color-bg);
+  padding: var(--spacing-md);
+  border-radius: 6px;
+}
+
+/* ============================================
+   PDF Print Styles
+   ============================================ */
+@media print {
+  .markdown-body {
+    max-width: none;
+    padding: 0;
+    background-color: white;
+    color: black;
+  }
+
+  .markdown-body pre,
+  .markdown-body code {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .markdown-body a {
+    color: #0366d6;
+  }
+
+  .markdown-body a[href]:after {
+    content: none;
+  }
+
+  .markdown-body img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4,
+  .markdown-body h5,
+  .markdown-body h6 {
+    page-break-after: avoid;
+    page-break-inside: avoid;
+  }
+
+  .markdown-body pre,
+  .markdown-body blockquote,
+  .markdown-body table {
+    page-break-inside: avoid;
+  }
+
+  .markdown-body .katex-block {
+    page-break-inside: avoid;
+  }
+
+  .markdown-body .mermaid {
+    page-break-inside: avoid;
+  }
+
+  /* Page break hints */
+  .markdown-body .page-break {
+    page-break-after: always;
+  }
+}
+
+/* ============================================
+   Syntax Highlighting (Tomorrow Theme)
+   ============================================ */
+.hljs {
+  color: #4d4d4c;
+  background: var(--color-code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #8e908c;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+  color: #c82829;
+}
+
+.hljs-number,
+.hljs-built_in,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+  color: #f5871f;
+}
+
+.hljs-attribute {
+  color: #eab700;
+}
+
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+  color: #718c00;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #4271ae;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: #8959a8;
+}
+
+/* Dark theme syntax highlighting */
+[data-theme="dark"] .hljs {
+  color: #c9d1d9;
+  background: var(--color-code-bg);
+}
+
+[data-theme="dark"] .hljs-comment,
+[data-theme="dark"] .hljs-quote {
+  color: #8b949e;
+}
+
+[data-theme="dark"] .hljs-variable,
+[data-theme="dark"] .hljs-template-variable,
+[data-theme="dark"] .hljs-tag,
+[data-theme="dark"] .hljs-name,
+[data-theme="dark"] .hljs-selector-id,
+[data-theme="dark"] .hljs-selector-class,
+[data-theme="dark"] .hljs-regexp,
+[data-theme="dark"] .hljs-deletion {
+  color: #ff7b72;
+}
+
+[data-theme="dark"] .hljs-number,
+[data-theme="dark"] .hljs-built_in,
+[data-theme="dark"] .hljs-literal,
+[data-theme="dark"] .hljs-type,
+[data-theme="dark"] .hljs-params,
+[data-theme="dark"] .hljs-meta,
+[data-theme="dark"] .hljs-link {
+  color: #d29922;
+}
+
+[data-theme="dark"] .hljs-attribute {
+  color: #ffa657;
+}
+
+[data-theme="dark"] .hljs-string,
+[data-theme="dark"] .hljs-symbol,
+[data-theme="dark"] .hljs-bullet,
+[data-theme="dark"] .hljs-addition {
+  color: #a5d6ff;
+}
+
+[data-theme="dark"] .hljs-title,
+[data-theme="dark"] .hljs-section {
+  color: #79c0ff;
+}
+
+[data-theme="dark"] .hljs-keyword,
+[data-theme="dark"] .hljs-selector-tag {
+  color: #ff7b72;
+}

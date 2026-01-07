@@ -1,0 +1,211 @@
+import MarkdownIt from 'markdown-it';
+import type StateBlock from 'markdown-it/lib/rules_block/state_block.mjs';
+import type StateInline from 'markdown-it/lib/rules_inline/state_inline.mjs';
+import hljs from 'highlight.js';
+import katex from 'katex';
+
+// Create the markdown-it instance with plugins
+function createMarkdownRenderer(): MarkdownIt {
+  const md = new MarkdownIt({
+    html: true,
+    linkify: true,
+    typographer: true,
+    breaks: false,
+    highlight: (str: string, lang: string): string => {
+      // Handle mermaid specially - don't highlight, wrap in div
+      if (lang === 'mermaid') {
+        return `<div class="mermaid">${escapeHtml(str)}</div>`;
+      }
+
+      if (lang && hljs.getLanguage(lang)) {
+        try {
+          return `<pre class="hljs"><code class="language-${lang}">${
+            hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
+          }</code></pre>`;
+        } catch {
+          // Fall through to default
+        }
+      }
+      return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
+    },
+  });
+
+  // Add checkbox support for task lists
+  md.use(require('markdown-it-checkbox'));
+
+  // Add LaTeX support with custom rules
+  addLatexSupport(md);
+
+  return md;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function addLatexSupport(md: MarkdownIt): void {
+  // Block math: $$...$$
+  const blockMathRule = (state: StateBlock, startLine: number, endLine: number, silent: boolean): boolean => {
+    const startPos = state.bMarks[startLine] + state.tShift[startLine];
+    const maxPos = state.eMarks[startLine];
+
+    // Check for opening $$
+    if (startPos + 2 > maxPos) return false;
+    if (state.src.slice(startPos, startPos + 2) !== '$$') return false;
+
+    // Find closing $$
+    let nextLine = startLine;
+    let found = false;
+
+    // Check if it's on the same line
+    const sameLineEnd = state.src.indexOf('$$', startPos + 2);
+    if (sameLineEnd !== -1 && sameLineEnd < maxPos) {
+      // Single line block math
+      if (silent) return true;
+
+      const content = state.src.slice(startPos + 2, sameLineEnd).trim();
+      const token = state.push('math_block', 'div', 0);
+      token.content = content;
+      token.map = [startLine, startLine + 1];
+      state.line = startLine + 1;
+      return true;
+    }
+
+    // Multi-line block math
+    for (nextLine = startLine + 1; nextLine < endLine; nextLine++) {
+      const pos = state.bMarks[nextLine] + state.tShift[nextLine];
+      const max = state.eMarks[nextLine];
+
+      if (state.src.slice(pos, max).trim() === '$$') {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) return false;
+    if (silent) return true;
+
+    const content = state.getLines(startLine + 1, nextLine, state.tShift[startLine], false).trim();
+    const token = state.push('math_block', 'div', 0);
+    token.content = content;
+    token.map = [startLine, nextLine + 1];
+    state.line = nextLine + 1;
+    return true;
+  };
+
+  // Inline math: $...$
+  const inlineMathRule = (state: StateInline, silent: boolean): boolean => {
+    const start = state.pos;
+    const max = state.posMax;
+
+    // Check for opening $
+    if (state.src.charCodeAt(start) !== 0x24 /* $ */) return false;
+
+    // Don't match $$ (that's block math)
+    if (start + 1 < max && state.src.charCodeAt(start + 1) === 0x24) return false;
+
+    // Don't match escaped \$
+    if (start > 0 && state.src.charCodeAt(start - 1) === 0x5c /* \ */) return false;
+
+    // Find closing $
+    let end = start + 1;
+    while (end < max) {
+      const char = state.src.charCodeAt(end);
+      if (char === 0x24 /* $ */ && state.src.charCodeAt(end - 1) !== 0x5c /* \ */) {
+        break;
+      }
+      end++;
+    }
+
+    if (end >= max) return false;
+
+    const content = state.src.slice(start + 1, end);
+
+    // Avoid empty content or content with only spaces
+    if (!content.trim()) return false;
+
+    if (!silent) {
+      const token = state.push('math_inline', 'span', 0);
+      token.content = content;
+    }
+
+    state.pos = end + 1;
+    return true;
+  };
+
+  // Register rules
+  md.block.ruler.before('fence', 'math_block', blockMathRule);
+  md.inline.ruler.before('escape', 'math_inline', inlineMathRule);
+
+  // Render rules
+  md.renderer.rules.math_block = (tokens, idx): string => {
+    const content = tokens[idx].content;
+    try {
+      const rendered = katex.renderToString(content, {
+        displayMode: true,
+        throwOnError: false,
+        trust: true,
+        strict: false,
+      });
+      return `<div class="katex-block">${rendered}</div>`;
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      return `<div class="math-error">Math error: ${escapeHtml(errorMessage)}</div>`;
+    }
+  };
+
+  md.renderer.rules.math_inline = (tokens, idx): string => {
+    const content = tokens[idx].content;
+    try {
+      const rendered = katex.renderToString(content, {
+        displayMode: false,
+        throwOnError: false,
+        trust: true,
+        strict: false,
+      });
+      return rendered;
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      return `<span class="math-error">Math error: ${escapeHtml(errorMessage)}</span>`;
+    }
+  };
+}
+
+// Singleton instance
+let mdInstance: MarkdownIt | null = null;
+
+export function getMarkdownRenderer(): MarkdownIt {
+  if (!mdInstance) {
+    mdInstance = createMarkdownRenderer();
+  }
+  return mdInstance;
+}
+
+export function renderMarkdown(content: string): string {
+  const md = getMarkdownRenderer();
+  return md.render(content);
+}
+
+export interface RenderOptions {
+  sanitize?: boolean;
+}
+
+export function renderMarkdownSafe(content: string, options: RenderOptions = {}): string {
+  const html = renderMarkdown(content);
+
+  if (options.sanitize !== false) {
+    // Import DOMPurify dynamically for sanitization
+    const DOMPurify = require('isomorphic-dompurify');
+    return DOMPurify.sanitize(html, {
+      ADD_TAGS: ['math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'mfrac', 'mroot', 'msqrt', 'mtext', 'mspace', 'mover', 'munder', 'mtable', 'mtr', 'mtd', 'annotation'],
+      ADD_ATTR: ['class', 'style', 'aria-hidden', 'focusable', 'role', 'xmlns', 'encoding'],
+      ALLOW_DATA_ATTR: true,
+    });
+  }
+
+  return html;
+}

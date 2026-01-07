@@ -1,0 +1,41 @@
+{
+  "name": "better-markdown-to-pdf",
+  "version": "1.0.0",
+  "description": "A polished markdown-to-PDF web application with LaTeX support",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.21",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "markdown-it": "^14.1.0",
+    "markdown-it-checkbox": "^1.1.0",
+    "markdown-it-container": "^4.0.0",
+    "highlight.js": "^11.10.0",
+    "katex": "^0.16.11",
+    "mermaid": "^11.4.0",
+    "dompurify": "^3.2.1",
+    "isomorphic-dompurify": "^2.16.0",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.21"
+  }
+}
