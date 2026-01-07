@@ -79,6 +79,7 @@ interface ExportOptions {
 
 export default function Home() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
+  const [renderedHtml, setRenderedHtml] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [margins, setMargins] = useState<MarginSize>('normal');
@@ -94,6 +95,11 @@ export default function Home() {
       setTheme(savedTheme);
     }
   }, []);
+
+  // Render markdown client-side only to avoid SSR issues with highlight.js
+  useEffect(() => {
+    setRenderedHtml(renderMarkdownSafe(markdown));
+  }, [markdown]);
 
   // Initialize Mermaid
   useEffect(() => {
@@ -199,8 +205,6 @@ export default function Home() {
       setIsExporting(false);
     }
   }, [markdown, pageSize, margins, theme, showToast]);
-
-  const renderedHtml = renderMarkdownSafe(markdown);
 
   return (
     <div className="app-container">
