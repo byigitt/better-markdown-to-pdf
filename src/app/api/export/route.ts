@@ -21,9 +21,9 @@ interface ExportRequest {
 }
 
 const MARGIN_CONFIGS = {
-  normal: { top: '1.5cm', bottom: '1cm', left: '1cm', right: '1cm' },
+  normal: { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' },
   narrow: { top: '0.5cm', bottom: '0.5cm', left: '0.5cm', right: '0.5cm' },
-  wide: { top: '2.5cm', bottom: '2cm', left: '2cm', right: '2cm' },
+  wide: { top: '3cm', bottom: '2.5cm', left: '3cm', right: '3cm' },
 };
 
 const PAGE_FORMATS = {
@@ -309,8 +309,29 @@ function generateHtml(content: string, fontSize: string, highlightTheme: Highlig
       body { padding: 0; }
       .markdown-body pre, .markdown-body code { white-space: pre-wrap; word-wrap: break-word; }
       .markdown-body img { max-width: 100% !important; page-break-inside: avoid; }
+
+      /* Headings: prevent orphaning at page bottom */
       .markdown-body h1, .markdown-body h2, .markdown-body h3,
-      .markdown-body h4, .markdown-body h5, .markdown-body h6 { page-break-after: avoid; }
+      .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+        page-break-after: avoid;
+        break-after: avoid;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Keep first element after heading together with heading */
+      .markdown-body h1 + *, .markdown-body h2 + *, .markdown-body h3 + *,
+      .markdown-body h4 + *, .markdown-body h5 + *, .markdown-body h6 + * {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      /* Paragraph orphan/widow control - min 3 lines at page break */
+      .markdown-body p {
+        orphans: 3;
+        widows: 3;
+      }
+
       .markdown-body pre, .markdown-body blockquote, .markdown-body table { page-break-inside: avoid; }
       .markdown-body .katex-block, .markdown-body .mermaid { page-break-inside: avoid; }
       .page-break { page-break-after: always; }
@@ -400,6 +421,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Wait for Mermaid diagrams to render
     await page.waitForTimeout(1000);
+
+    // Emulate print media for correct styling
+    await page.emulateMedia({ media: 'print' });
 
     // Generate PDF
     const pdf = await page.pdf({
