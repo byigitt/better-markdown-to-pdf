@@ -258,6 +258,53 @@ body {
   background-color: rgba(3, 102, 214, 0.05);
 }
 
+.file-upload__label--batch {
+  background-color: rgba(3, 102, 214, 0.08);
+  border-style: dashed;
+}
+
+/* Batch Export Info */
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: rgba(3, 102, 214, 0.1);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.batch-info__count {
+  color: var(--app-primary);
+  font-weight: 500;
+}
+
+.btn--small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn--ghost {
+  background: transparent;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.btn--ghost:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--app-danger);
+}
+
+.btn--ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Toast / Notifications */
 .toast {
   position: fixed;

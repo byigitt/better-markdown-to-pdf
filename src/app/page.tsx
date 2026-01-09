@@ -81,6 +81,12 @@ const FONT_SIZE_VALUES: Record<FontSize, string> = {
   xlarge: '18px',
 };
 
+const MARGIN_PREVIEW_VALUES: Record<MarginSize, string> = {
+  normal: '24px',
+  narrow: '8px',
+  wide: '48px',
+};
+
 const HIGHLIGHT_THEME_LABELS: Record<HighlightTheme, string> = {
   github: 'GitHub',
   monokai: 'Monokai',
@@ -177,7 +183,11 @@ export default function Home() {
   });
   const [exportingFormat, setExportingFormat] = useState<'pdf' | 'html' | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [batchFiles, setBatchFiles] = useState<{ name: string; content: string }[]>([]);
+  const [batchExporting, setBatchExporting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // Initialize theme from localStorage
@@ -316,6 +326,110 @@ export default function Home() {
   const handleExportPDF = useCallback(() => handleExport('pdf'), [handleExport]);
   const handleExportHTML = useCallback(() => handleExport('html'), [handleExport]);
 
+  const handleBatchFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const validFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.name.endsWith('.md') || file.name.endsWith('.markdown')) {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) {
+      showToast('No valid .md or .markdown files found', 'error');
+      return;
+    }
+
+    const readPromises = validFiles.map((file) => {
+      return new Promise<{ name: string; content: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: file.name.replace(/\.(md|markdown)$/, ''),
+            content: e.target?.result as string,
+          });
+        };
+        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+        reader.readAsText(file);
+      });
+    });
+
+    Promise.all(readPromises)
+      .then((results) => {
+        setBatchFiles(results);
+        showToast(`${results.length} file(s) loaded`, 'success');
+      })
+      .catch(() => {
+        showToast('Failed to read some files', 'error');
+      });
+
+    if (batchFileInputRef.current) {
+      batchFileInputRef.current.value = '';
+    }
+  }, [showToast]);
+
+  const handleBatchExport = useCallback(async () => {
+    if (batchFiles.length === 0) return;
+
+    setBatchExporting(true);
+    setBatchProgress({ current: 0, total: batchFiles.length });
+
+    for (let i = 0; i < batchFiles.length; i++) {
+      const file = batchFiles[i];
+      setBatchProgress({ current: i + 1, total: batchFiles.length });
+
+      try {
+        const response = await fetch('/api/export', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            markdown: file.content,
+            options: {
+              pageSize,
+              margins,
+              theme,
+              fontSize: FONT_SIZE_VALUES[fontSize],
+              highlightTheme,
+              format: 'pdf',
+              markdownOptions,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to export ${file.name}`);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${file.name}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Small delay between downloads
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      } catch (error) {
+        showToast(`Failed to export ${file.name}`, 'error');
+      }
+    }
+
+    setBatchExporting(false);
+    setBatchProgress({ current: 0, total: 0 });
+    showToast(`Exported ${batchFiles.length} PDF(s)`, 'success');
+    setBatchFiles([]);
+  }, [batchFiles, pageSize, margins, theme, fontSize, highlightTheme, markdownOptions, showToast]);
+
+  const clearBatchFiles = useCallback(() => {
+    setBatchFiles([]);
+  }, []);
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -337,6 +451,54 @@ export default function Home() {
               Upload .md
             </label>
           </div>
+
+          <div className="file-upload">
+            <input
+              ref={batchFileInputRef}
+              type="file"
+              id="batch-file-upload"
+              className="file-upload__input"
+              accept=".md,.markdown"
+              multiple
+              onChange={handleBatchFileUpload}
+            />
+            <label htmlFor="batch-file-upload" className="file-upload__label file-upload__label--batch">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z"/>
+                <path d="M9.5 3a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H9V3.5a.5.5 0 0 1 .5-.5z"/>
+                <path d="M6 7h4v1H6V7zm0 2h4v1H6V9zm0 2h4v1H6v-1z"/>
+              </svg>
+              Batch
+            </label>
+          </div>
+
+          {batchFiles.length > 0 && (
+            <div className="batch-info">
+              <span className="batch-info__count">{batchFiles.length} file(s)</span>
+              <button
+                className="btn btn--primary btn--small"
+                onClick={handleBatchExport}
+                disabled={batchExporting}
+              >
+                {batchExporting ? (
+                  <>
+                    <span className="spinner" />
+                    {batchProgress.current}/{batchProgress.total}
+                  </>
+                ) : (
+                  'Export All'
+                )}
+              </button>
+              <button
+                className="btn btn--ghost btn--small"
+                onClick={clearBatchFiles}
+                disabled={batchExporting}
+                title="Clear files"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <select
             className="select"
@@ -513,7 +675,10 @@ export default function Home() {
             <div
               ref={previewRef}
               className="markdown-body"
-              style={{ fontSize: FONT_SIZE_VALUES[fontSize] }}
+              style={{
+                fontSize: FONT_SIZE_VALUES[fontSize],
+                padding: MARGIN_PREVIEW_VALUES[margins],
+              }}
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           </div>
