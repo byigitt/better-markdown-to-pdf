@@ -259,15 +259,31 @@ export default function Home() {
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file extension
       if (!file.name.endsWith('.md') && !file.name.endsWith('.markdown')) {
         showToast('Please upload a .md or .markdown file', 'error');
+        return;
+      }
+      // Check MIME type if available (text/markdown or text/plain are valid)
+      if (file.type && !file.type.startsWith('text/') && file.type !== 'application/octet-stream') {
+        showToast('Invalid file type. Please upload a text-based markdown file', 'error');
+        return;
+      }
+      // Check file size (limit to 10MB for safety)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('File too large. Maximum size is 10MB', 'error');
         return;
       }
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setMarkdown(content);
-        showToast('File loaded successfully', 'success');
+        // Basic validation that content is valid text
+        if (content && typeof content === 'string') {
+          setMarkdown(content);
+          showToast('File loaded successfully', 'success');
+        } else {
+          showToast('Failed to parse file content', 'error');
+        }
       };
       reader.onerror = () => {
         showToast('Failed to read file', 'error');
