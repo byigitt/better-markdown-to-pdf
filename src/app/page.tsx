@@ -325,14 +325,18 @@ export default function Home() {
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = format === 'pdf' ? 'document.pdf' : 'document.html';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      showToast(`${format.toUpperCase()} exported successfully`, 'success');
+      try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = format === 'pdf' ? 'document.pdf' : 'document.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`${format.toUpperCase()} exported successfully`, 'success');
+      } finally {
+        // Always revoke URL to prevent memory leak, even if download fails
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Export failed';
       showToast(message, 'error');
@@ -395,9 +399,11 @@ export default function Home() {
     setBatchExporting(true);
     setBatchProgress({ current: 0, total: batchFiles.length });
 
+    let successCount = 0;
     for (let i = 0; i < batchFiles.length; i++) {
       const file = batchFiles[i];
-      setBatchProgress({ current: i + 1, total: batchFiles.length });
+      // Show progress as "processing X of Y" (0-indexed current file)
+      setBatchProgress({ current: i, total: batchFiles.length });
 
       try {
         const response = await fetch('/api/export', {

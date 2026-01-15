@@ -445,6 +445,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       preferCSSPageSize: false,
     });
 
+    // Properly close page before context to prevent resource leaks
+    await page.close();
     await context.close();
 
     // Convert Buffer to Uint8Array for NextResponse compatibility
@@ -467,11 +469,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// Cleanup on process exit
+// Cleanup on process exit - use multiple signals for reliability
 if (typeof process !== 'undefined') {
-  process.on('beforeExit', async () => {
+  const cleanup = async () => {
     if (browserInstance) {
-      await browserInstance.close();
+      try {
+        await browserInstance.close();
+        browserInstance = null;
+      } catch {
+        // Browser may already be closed
+      }
     }
-  });
+  };
+
+  process.on('beforeExit', cleanup);
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 }

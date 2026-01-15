@@ -783,6 +783,7 @@ export async function mdToPdf(
       });
     });
 
+    await page.close();
     await context.close();
     throw new Error('DevTools mode: No output generated.');
   }
@@ -804,6 +805,8 @@ export async function mdToPdf(
     preferCSSPageSize: pdfOptions.preferCSSPageSize,
   });
 
+  // Properly close page before context to prevent resource leaks
+  await page.close();
   await context.close();
 
   const buffer = Buffer.from(pdf);
