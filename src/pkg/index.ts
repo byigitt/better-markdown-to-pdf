@@ -794,7 +794,7 @@ export async function mdToPdf(
     format: pdfOptions.format || 'A4',
     width: pdfOptions.width,
     height: pdfOptions.height,
-    margin: pdfOptions.margin || { top: '1.5cm', bottom: '1cm', left: '1cm', right: '1cm' },
+    margin: pdfOptions.margin || { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' },
     printBackground: pdfOptions.printBackground ?? true,
     landscape: pdfOptions.landscape ?? false,
     scale: pdfOptions.scale,
