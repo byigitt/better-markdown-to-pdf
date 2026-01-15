@@ -430,6 +430,21 @@ export default function Home() {
     setBatchFiles([]);
   }, []);
 
+  const convertBlockToInlineMath = useCallback(() => {
+    // Replace $$ ... $$ with $ ... $ (both single-line and multi-line)
+    const converted = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (_, content) => {
+      // Trim whitespace and newlines, collapse to single line
+      const trimmed = content.trim().replace(/\s+/g, ' ');
+      return `$${trimmed}$`;
+    });
+    if (converted !== markdown) {
+      setMarkdown(converted);
+      showToast('Converted block math to inline', 'success');
+    } else {
+      showToast('No block math ($$) found', 'error');
+    }
+  }, [markdown, showToast]);
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -499,6 +514,14 @@ export default function Home() {
               </button>
             </div>
           )}
+
+          <button
+            className="btn btn--secondary btn--small"
+            onClick={convertBlockToInlineMath}
+            title="Convert $$ to $ (block math to inline)"
+          >
+            $$ → $
+          </button>
 
           <select
             className="select"
