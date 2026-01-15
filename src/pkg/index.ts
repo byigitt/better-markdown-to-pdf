@@ -408,11 +408,11 @@ function generateHtml(
   <title>${title}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     :root {
-      --font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
       --font-family-mono: Menlo, Monaco, Consolas, "Courier New", monospace;
       --color-text: #333333;
       --color-text-secondary: #6a737d;
@@ -753,8 +753,20 @@ export async function mdToPdf(
     timeout,
   });
 
-  // Wait for Mermaid diagrams
-  await page.waitForTimeout(1000);
+  // Wait for Mermaid diagrams to render (smart wait with fallback)
+  await page.waitForFunction(() => {
+    const mermaidDivs = Array.from(document.querySelectorAll('.mermaid'));
+    for (let i = 0; i < mermaidDivs.length; i++) {
+      const div = mermaidDivs[i];
+      if (!div.querySelector('svg') && div.textContent?.trim()) {
+        return false; // Still rendering
+      }
+    }
+    return true;
+  }, { timeout: 10000 }).catch(() => {
+    // Fallback if Mermaid check fails
+  });
+  await page.waitForTimeout(500); // Small buffer for final rendering
 
   // DevTools mode: keep browser open for debugging
   if (mergedConfig.devtools) {
@@ -771,6 +783,7 @@ export async function mdToPdf(
       });
     });
 
+    await page.close();
     await context.close();
     throw new Error('DevTools mode: No output generated.');
   }
@@ -781,7 +794,7 @@ export async function mdToPdf(
     format: pdfOptions.format || 'A4',
     width: pdfOptions.width,
     height: pdfOptions.height,
-    margin: pdfOptions.margin || { top: '1.5cm', bottom: '1cm', left: '1cm', right: '1cm' },
+    margin: pdfOptions.margin || { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' },
     printBackground: pdfOptions.printBackground ?? true,
     landscape: pdfOptions.landscape ?? false,
     scale: pdfOptions.scale,
@@ -792,6 +805,8 @@ export async function mdToPdf(
     preferCSSPageSize: pdfOptions.preferCSSPageSize,
   });
 
+  // Properly close page before context to prevent resource leaks
+  await page.close();
   await context.close();
 
   const buffer = Buffer.from(pdf);

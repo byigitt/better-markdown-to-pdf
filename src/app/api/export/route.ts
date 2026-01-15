@@ -111,12 +111,12 @@ function generateHtml(content: string, fontSize: string, highlightTheme: Highlig
   <title>Document</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     /* PDF Styles - Always light theme for print */
     :root {
-      --font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+      --font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
       --font-family-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace;
       --font-size-base: ${fontSize};
       --line-height-base: 1.6;
@@ -282,7 +282,7 @@ function generateHtml(content: string, fontSize: string, highlightTheme: Highlig
       padding: var(--spacing-xs) 0;
     }
 
-    .markdown-body .katex { font-size: 1.1em; }
+    .markdown-body .katex { font-size: 1.3em; }
     .markdown-body .katex-block .katex { font-size: 1.6em; }
 
     .markdown-body .math-error {
@@ -419,8 +419,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       timeout: 30000,
     });
 
-    // Wait for Mermaid diagrams to render
-    await page.waitForTimeout(1000);
+    // Wait for Mermaid diagrams to render (increased timeout for complex diagrams)
+    await page.waitForFunction(() => {
+      const mermaidDivs = Array.from(document.querySelectorAll('.mermaid'));
+      for (let i = 0; i < mermaidDivs.length; i++) {
+        const div = mermaidDivs[i];
+        if (!div.querySelector('svg') && div.textContent?.trim()) {
+          return false; // Still rendering
+        }
+      }
+      return true;
+    }, { timeout: 10000 }).catch(() => {
+      // Fallback timeout if Mermaid check fails
+    });
+    await page.waitForTimeout(500); // Small buffer for final rendering
 
     // Emulate print media for correct styling
     await page.emulateMedia({ media: 'print' });
@@ -433,6 +445,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       preferCSSPageSize: false,
     });
 
+    // Properly close page before context to prevent resource leaks
+    await page.close();
     await context.close();
 
     // Convert Buffer to Uint8Array for NextResponse compatibility
@@ -455,11 +469,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// Cleanup on process exit
+// Cleanup on process exit - use multiple signals for reliability
 if (typeof process !== 'undefined') {
-  process.on('beforeExit', async () => {
+  const cleanup = async () => {
     if (browserInstance) {
-      await browserInstance.close();
+      try {
+        await browserInstance.close();
+        browserInstance = null;
+      } catch {
+        // Browser may already be closed
+      }
     }
-  });
+  };
+
+  process.on('beforeExit', cleanup);
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 }

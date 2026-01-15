@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    serverComponentsExternalPackages: ['jsdom', 'isomorphic-dompurify'],
+  },
   webpack: (config, { isServer }) => {
     // Handle node modules that shouldn't be bundled on client
     if (!isServer) {

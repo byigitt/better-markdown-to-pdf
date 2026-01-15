@@ -7,7 +7,7 @@
    ============================================ */
 :root {
   /* Typography */
-  --font-family: var(--font-inter-tight), "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+  --font-family: var(--font-inter-tight), "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", "Ubuntu", "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   --font-family-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
   --font-size-base: 14px;
   --line-height-base: 1.6;
@@ -322,7 +322,7 @@
 }
 
 .markdown-body .katex {
-  font-size: 1.1em;
+  font-size: 1.3em;
 }
 
 .markdown-body .katex-block .katex {

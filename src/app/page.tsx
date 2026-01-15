@@ -166,10 +166,29 @@ const HIGHLIGHT_THEMES_CSS: Record<HighlightTheme, string> = {
   `,
 };
 
+// Helper to get initial theme (reads from DOM attribute set by layout script)
+function getInitialTheme(): 'light' | 'dark' {
+  if (typeof window !== 'undefined') {
+    // First check DOM attribute (set by layout inline script before hydration)
+    const domTheme = document.documentElement.getAttribute('data-theme');
+    if (domTheme === 'dark' || domTheme === 'light') {
+      return domTheme;
+    }
+    // Fallback to localStorage
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') {
+      return stored;
+    }
+  }
+  return 'light';
+}
+
 export default function Home() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [renderedHtml, setRenderedHtml] = useState('');
+  // Initialize theme from DOM to prevent hydration mismatch
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [themeInitialized, setThemeInitialized] = useState(false);
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [margins, setMargins] = useState<MarginSize>('normal');
   const [fontSize, setFontSize] = useState<FontSize>('medium');
@@ -190,12 +209,11 @@ export default function Home() {
   const batchFileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Initialize theme from localStorage
+  // Initialize theme from DOM/localStorage after mount to sync with layout script
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
+    const initialTheme = getInitialTheme();
+    setTheme(initialTheme);
+    setThemeInitialized(true);
   }, []);
 
   // Render markdown client-side only to avoid SSR issues with highlight.js
@@ -231,8 +249,10 @@ export default function Home() {
         try {
           const { svg } = await mermaid.render(`mermaid-${renderTime}-${i}`, content);
           div.innerHTML = svg;
-        } catch {
-          // Mermaid rendering failed, keep original content
+        } catch (error) {
+          // Show error message in the diagram area for user feedback
+          const errorMsg = error instanceof Error ? error.message : 'Invalid Mermaid syntax';
+          div.innerHTML = `<div class="mermaid-error" style="color: #d32f2f; background: rgba(211,47,47,0.1); padding: 12px; border-radius: 4px; font-family: monospace; font-size: 12px; white-space: pre-wrap;">Mermaid Error: ${errorMsg}</div>`;
         }
       }
     };
@@ -257,15 +277,31 @@ export default function Home() {
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Check file extension
       if (!file.name.endsWith('.md') && !file.name.endsWith('.markdown')) {
         showToast('Please upload a .md or .markdown file', 'error');
+        return;
+      }
+      // Check MIME type if available (text/markdown or text/plain are valid)
+      if (file.type && !file.type.startsWith('text/') && file.type !== 'application/octet-stream') {
+        showToast('Invalid file type. Please upload a text-based markdown file', 'error');
+        return;
+      }
+      // Check file size (limit to 10MB for safety)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('File too large. Maximum size is 10MB', 'error');
         return;
       }
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        setMarkdown(content);
-        showToast('File loaded successfully', 'success');
+        // Basic validation that content is valid text
+        if (content && typeof content === 'string') {
+          setMarkdown(content);
+          showToast('File loaded successfully', 'success');
+        } else {
+          showToast('Failed to parse file content', 'error');
+        }
       };
       reader.onerror = () => {
         showToast('Failed to read file', 'error');
@@ -307,14 +343,18 @@ export default function Home() {
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = format === 'pdf' ? 'document.pdf' : 'document.html';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      showToast(`${format.toUpperCase()} exported successfully`, 'success');
+      try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = format === 'pdf' ? 'document.pdf' : 'document.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`${format.toUpperCase()} exported successfully`, 'success');
+      } finally {
+        // Always revoke URL to prevent memory leak, even if download fails
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Export failed';
       showToast(message, 'error');
@@ -377,9 +417,11 @@ export default function Home() {
     setBatchExporting(true);
     setBatchProgress({ current: 0, total: batchFiles.length });
 
+    let successCount = 0;
     for (let i = 0; i < batchFiles.length; i++) {
       const file = batchFiles[i];
-      setBatchProgress({ current: i + 1, total: batchFiles.length });
+      // Show progress as "processing X of Y" (0-indexed current file)
+      setBatchProgress({ current: i, total: batchFiles.length });
 
       try {
         const response = await fetch('/api/export', {
@@ -405,30 +447,55 @@ export default function Home() {
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${file.name}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        try {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${file.name}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          successCount++;
+          // Update progress after successful export
+          setBatchProgress({ current: i + 1, total: batchFiles.length });
+        } finally {
+          window.URL.revokeObjectURL(url);
+        }
 
         // Small delay between downloads
         await new Promise((resolve) => setTimeout(resolve, 300));
       } catch (error) {
         showToast(`Failed to export ${file.name}`, 'error');
+        // Still update progress to show we've processed this file (even if failed)
+        setBatchProgress({ current: i + 1, total: batchFiles.length });
       }
     }
 
     setBatchExporting(false);
     setBatchProgress({ current: 0, total: 0 });
-    showToast(`Exported ${batchFiles.length} PDF(s)`, 'success');
+    if (successCount > 0) {
+      showToast(`Exported ${successCount} of ${batchFiles.length} PDF(s)`, 'success');
+    }
     setBatchFiles([]);
   }, [batchFiles, pageSize, margins, theme, fontSize, highlightTheme, markdownOptions, showToast]);
 
   const clearBatchFiles = useCallback(() => {
     setBatchFiles([]);
   }, []);
+
+  const convertBlockToInlineMath = useCallback(() => {
+    // Replace $$ ... $$ with $ ... $ (both single-line and multi-line)
+    const converted = markdown.replace(/\$\$([\s\S]*?)\$\$/g, (_, content) => {
+      // Trim whitespace and newlines, collapse to single line
+      const trimmed = content.trim().replace(/\s+/g, ' ');
+      return `$${trimmed}$`;
+    });
+    if (converted !== markdown) {
+      setMarkdown(converted);
+      showToast('Converted block math to inline', 'success');
+    } else {
+      showToast('No block math ($$) found', 'error');
+    }
+  }, [markdown, showToast]);
 
   return (
     <div className="app-container">
@@ -499,6 +566,14 @@ export default function Home() {
               </button>
             </div>
           )}
+
+          <button
+            className="btn btn--secondary btn--small"
+            onClick={convertBlockToInlineMath}
+            title="Convert $$ to $ (block math to inline)"
+          >
+            $$ → $
+          </button>
 
           <select
             className="select"
