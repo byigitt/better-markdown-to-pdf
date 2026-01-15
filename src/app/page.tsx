@@ -231,8 +231,10 @@ export default function Home() {
         try {
           const { svg } = await mermaid.render(`mermaid-${renderTime}-${i}`, content);
           div.innerHTML = svg;
-        } catch {
-          // Mermaid rendering failed, keep original content
+        } catch (error) {
+          // Show error message in the diagram area for user feedback
+          const errorMsg = error instanceof Error ? error.message : 'Invalid Mermaid syntax';
+          div.innerHTML = `<div class="mermaid-error" style="color: #d32f2f; background: rgba(211,47,47,0.1); padding: 12px; border-radius: 4px; font-family: monospace; font-size: 12px; white-space: pre-wrap;">Mermaid Error: ${errorMsg}</div>`;
         }
       }
     };

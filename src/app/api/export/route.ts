@@ -419,8 +419,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       timeout: 30000,
     });
 
-    // Wait for Mermaid diagrams to render
-    await page.waitForTimeout(1000);
+    // Wait for Mermaid diagrams to render (increased timeout for complex diagrams)
+    await page.waitForFunction(() => {
+      const mermaidDivs = Array.from(document.querySelectorAll('.mermaid'));
+      for (let i = 0; i < mermaidDivs.length; i++) {
+        const div = mermaidDivs[i];
+        if (!div.querySelector('svg') && div.textContent?.trim()) {
+          return false; // Still rendering
+        }
+      }
+      return true;
+    }, { timeout: 10000 }).catch(() => {
+      // Fallback timeout if Mermaid check fails
+    });
+    await page.waitForTimeout(500); // Small buffer for final rendering
 
     // Emulate print media for correct styling
     await page.emulateMedia({ media: 'print' });

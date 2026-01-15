@@ -753,8 +753,20 @@ export async function mdToPdf(
     timeout,
   });
 
-  // Wait for Mermaid diagrams
-  await page.waitForTimeout(1000);
+  // Wait for Mermaid diagrams to render (smart wait with fallback)
+  await page.waitForFunction(() => {
+    const mermaidDivs = Array.from(document.querySelectorAll('.mermaid'));
+    for (let i = 0; i < mermaidDivs.length; i++) {
+      const div = mermaidDivs[i];
+      if (!div.querySelector('svg') && div.textContent?.trim()) {
+        return false; // Still rendering
+      }
+    }
+    return true;
+  }, { timeout: 10000 }).catch(() => {
+    // Fallback if Mermaid check fails
+  });
+  await page.waitForTimeout(500); // Small buffer for final rendering
 
   // DevTools mode: keep browser open for debugging
   if (mergedConfig.devtools) {
