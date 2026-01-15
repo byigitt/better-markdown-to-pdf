@@ -166,10 +166,29 @@ const HIGHLIGHT_THEMES_CSS: Record<HighlightTheme, string> = {
   `,
 };
 
+// Helper to get initial theme (reads from DOM attribute set by layout script)
+function getInitialTheme(): 'light' | 'dark' {
+  if (typeof window !== 'undefined') {
+    // First check DOM attribute (set by layout inline script before hydration)
+    const domTheme = document.documentElement.getAttribute('data-theme');
+    if (domTheme === 'dark' || domTheme === 'light') {
+      return domTheme;
+    }
+    // Fallback to localStorage
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') {
+      return stored;
+    }
+  }
+  return 'light';
+}
+
 export default function Home() {
   const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [renderedHtml, setRenderedHtml] = useState('');
+  // Initialize theme from DOM to prevent hydration mismatch
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [themeInitialized, setThemeInitialized] = useState(false);
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [margins, setMargins] = useState<MarginSize>('normal');
   const [fontSize, setFontSize] = useState<FontSize>('medium');
@@ -190,12 +209,11 @@ export default function Home() {
   const batchFileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Initialize theme from localStorage
+  // Initialize theme from DOM/localStorage after mount to sync with layout script
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
+    const initialTheme = getInitialTheme();
+    setTheme(initialTheme);
+    setThemeInitialized(true);
   }, []);
 
   // Render markdown client-side only to avoid SSR issues with highlight.js
@@ -429,24 +447,34 @@ export default function Home() {
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${file.name}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        try {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${file.name}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          successCount++;
+          // Update progress after successful export
+          setBatchProgress({ current: i + 1, total: batchFiles.length });
+        } finally {
+          window.URL.revokeObjectURL(url);
+        }
 
         // Small delay between downloads
         await new Promise((resolve) => setTimeout(resolve, 300));
       } catch (error) {
         showToast(`Failed to export ${file.name}`, 'error');
+        // Still update progress to show we've processed this file (even if failed)
+        setBatchProgress({ current: i + 1, total: batchFiles.length });
       }
     }
 
     setBatchExporting(false);
     setBatchProgress({ current: 0, total: 0 });
-    showToast(`Exported ${batchFiles.length} PDF(s)`, 'success');
+    if (successCount > 0) {
+      showToast(`Exported ${successCount} of ${batchFiles.length} PDF(s)`, 'success');
+    }
     setBatchFiles([]);
   }, [batchFiles, pageSize, margins, theme, fontSize, highlightTheme, markdownOptions, showToast]);
 
